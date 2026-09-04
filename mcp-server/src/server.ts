@@ -2,7 +2,7 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { z } from "zod";
 import { findSkill, summarize, type Catalog, type Skill } from "./catalog.js";
 import { createDevinSession, devinConfigFromEnv, type DevinConfig } from "./devin.js";
-import { composeSessionPrompt } from "./prompt.js";
+import { planLaunch, UnknownSkillError } from "./launch.js";
 import { handoffChain, recommendSkills } from "./recommend.js";
 import { STAGES, STAGE_ORDER } from "./stages.js";
 
@@ -24,18 +24,6 @@ function text(data: unknown) {
 function skillSummary(s: Skill) {
   const { body: _body, ...rest } = s;
   return rest;
-}
-
-function resolveSkills(catalog: Catalog, ids: string[]): { skills: Skill[]; missing: string[] } {
-  const skills: Skill[] = [];
-  const missing: string[] = [];
-  for (const id of ids) {
-    const s = findSkill(catalog, id);
-    if (s) {
-      if (!skills.includes(s)) skills.push(s);
-    } else missing.push(id);
-  }
-  return { skills, missing };
 }
 
 export function createServer(deps: ServerDeps): McpServer {
@@ -144,11 +132,13 @@ export function createServer(deps: ServerDeps): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async ({ task, skill_ids, repo, context, mode }) => {
-      const ids = skill_ids ?? recommendSkills(catalog, task, 2).map((r) => r.id);
-      const { skills, missing } = resolveSkills(catalog, ids);
-      if (missing.length > 0) return { ...text(`Unknown skill id(s): ${missing.join(", ")}`), isError: true };
-      const prompt = composeSessionPrompt({ task, skills, repo, context, mode, marketplaceUrl: deps.marketplaceUrl });
-      return text({ skillIds: skills.map((s) => s.id), prompt });
+      try {
+        const plan = planLaunch(catalog, { task, skillIds: skill_ids, repo, context, mode, marketplaceUrl: deps.marketplaceUrl });
+        return text({ skillIds: plan.skillIds, prompt: plan.prompt });
+      } catch (err) {
+        if (err instanceof UnknownSkillError) return { ...text(err.message), isError: true };
+        throw err;
+      }
     },
   );
 
@@ -176,39 +166,37 @@ export function createServer(deps: ServerDeps): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (args) => {
-      const ids = args.skill_ids ?? recommendSkills(catalog, args.task, 2).map((r) => r.id);
-      const { skills, missing } = resolveSkills(catalog, ids);
-      if (missing.length > 0) return { ...text(`Unknown skill id(s): ${missing.join(", ")}`), isError: true };
-      const prompt = composeSessionPrompt({
-        task: args.task,
-        skills,
-        repo: args.repo,
-        context: args.context,
-        mode: args.mode,
-        marketplaceUrl: deps.marketplaceUrl,
-      });
-      const stages = [...new Set(skills.map((s) => s.stage))];
-      const tags = [...new Set(["sdlc-skills", ...stages, ...(args.tags ?? [])])];
-      const input = {
-        prompt,
-        title: args.title,
-        tags,
-        playbookId: args.playbook_id,
-        maxAcuLimit: args.max_acu_limit,
-        unlisted: args.unlisted,
-        idempotent: args.idempotent,
-        createAsUserId: args.create_as_user_id,
-      };
+      let plan;
+      try {
+        plan = planLaunch(catalog, {
+          task: args.task,
+          skillIds: args.skill_ids,
+          repo: args.repo,
+          context: args.context,
+          mode: args.mode,
+          title: args.title,
+          tags: args.tags,
+          playbookId: args.playbook_id,
+          maxAcuLimit: args.max_acu_limit,
+          unlisted: args.unlisted,
+          idempotent: args.idempotent,
+          createAsUserId: args.create_as_user_id,
+          marketplaceUrl: deps.marketplaceUrl,
+        });
+      } catch (err) {
+        if (err instanceof UnknownSkillError) return { ...text(err.message), isError: true };
+        throw err;
+      }
 
-      if (args.dry_run) return text({ dryRun: true, skillIds: skills.map((s) => s.id), request: input });
+      if (args.dry_run) return text({ dryRun: true, skillIds: plan.skillIds, request: plan.request });
       if (!devin) {
         return {
           ...text("DEVIN_API_KEY is not configured on this MCP server. Set DEVIN_API_KEY (and optionally DEVIN_ORG_ID) or call with dry_run=true."),
           isError: true,
         };
       }
-      const result = await createDevinSession(devin, input, deps.fetchImpl);
-      return text({ skillIds: skills.map((s) => s.id), ...result });
+      const result = await createDevinSession(devin, plan.request, deps.fetchImpl);
+      return text({ skillIds: plan.skillIds, ...result });
     },
   );
 
