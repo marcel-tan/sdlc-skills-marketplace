@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { timingSafeEqual } from "node:crypto";
+import { lookup } from "node:dns/promises";
 import { createServer as createHttpServer, type IncomingMessage } from "node:http";
+import { isIP } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -27,7 +29,17 @@ env: DEVIN_API_KEY, DEVIN_ORG_ID (optional, selects the v3 endpoint), DEVIN_API_
 
 const PACKAGE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+/** True only if every address the bind host resolves to is a loopback address. */
+async function isLoopbackHost(host: string): Promise<boolean> {
+  const isLoopbackAddr = (a: string) => /^127\./.test(a) || a === "::1" || /^::ffff:127\./i.test(a);
+  if (isIP(host)) return isLoopbackAddr(host);
+  try {
+    const addrs = await lookup(host, { all: true });
+    return addrs.length > 0 && addrs.every((a) => isLoopbackAddr(a.address));
+  } catch {
+    return false;
+  }
+}
 
 function bearerMatches(req: IncomingMessage, token: string): boolean {
   const header = req.headers.authorization ?? "";
@@ -102,7 +114,7 @@ async function main(): Promise<void> {
   }
 
   const authToken = process.env.MCP_AUTH_TOKEN;
-  if (!authToken && process.env.DEVIN_API_KEY && !LOOPBACK_HOSTS.has(args.host)) {
+  if (!authToken && process.env.DEVIN_API_KEY && !(await isLoopbackHost(args.host))) {
     throw new Error(
       `refusing to bind ${args.host} with DEVIN_API_KEY but no MCP_AUTH_TOKEN: anyone reaching /mcp could start paid Devin sessions. Set MCP_AUTH_TOKEN or bind 127.0.0.1.`,
     );

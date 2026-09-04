@@ -22,16 +22,26 @@ const state = {
   skills: [],
   stages: [],
   selected: [], // ordered skill ids
+  autoSelected: new Set(), // subset of `selected` added by recommend(), replaced on the next recommend()
   recommendations: new Map(), // id -> recommendation
   sessions: loadSessions(),
   statuses: new Map(), // sessionId -> SessionStatus
   composeTimer: null,
+  recommendSeq: 0,
+  composeSeq: 0,
+  pollOffset: 0,
+  launching: false,
 };
 
 // ---------- API ----------
 
+// Token lives in sessionStorage: per-tab and cleared when the tab closes.
+function getToken() {
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
 function authHeaders() {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getToken();
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
@@ -75,7 +85,12 @@ function loadSessions() {
 }
 
 function saveSessions() {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(state.sessions.slice(0, 100)));
+  try {
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(state.sessions.slice(0, 100)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---------- boot ----------
@@ -113,7 +128,7 @@ function setDevinPill(kind, text) {
 
 function showTokenForm(show) {
   $("token-form").classList.toggle("hidden", !show);
-  if (show) $("token-input").value = localStorage.getItem(TOKEN_KEY) || "";
+  if (show) $("token-input").value = getToken() || "";
 }
 
 // ---------- events ----------
@@ -122,8 +137,8 @@ function wireEvents() {
   $("token-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("token-input").value.trim();
-    if (v) localStorage.setItem(TOKEN_KEY, v);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (v) sessionStorage.setItem(TOKEN_KEY, v);
+    else sessionStorage.removeItem(TOKEN_KEY);
     location.reload();
   });
 
@@ -180,18 +195,23 @@ async function recommend() {
     return;
   }
   hint.textContent = "Thinking…";
+  const seq = ++state.recommendSeq;
   try {
     const { recommendations, suggestedChain } = await api("/api/recommend", { method: "POST", body: JSON.stringify({ task, limit: 5 }) });
+    if (seq !== state.recommendSeq) return;
     state.recommendations = new Map(recommendations.map((r) => [r.id, r]));
-    // Preselect the top two (same default as the MCP tool), keep any user picks.
+    // Preselect the top two (same default as the MCP tool); previous auto-picks are replaced, manual picks kept.
     const top = recommendations.slice(0, 2).map((r) => r.id);
-    state.selected = [...new Set([...top, ...state.selected.filter((id) => !state.recommendations.has(id) || top.includes(id))])];
+    const manual = state.selected.filter((id) => !state.autoSelected.has(id));
+    state.selected = [...new Set([...top, ...manual])];
+    state.autoSelected = new Set(top.filter((id) => !manual.includes(id)));
     hint.textContent = recommendations.length
       ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} · suggested chain: ${suggestedChain.join(" → ")}`
       : "No skill matched — pick skills manually or rephrase the task.";
     renderCatalog();
     scheduleCompose();
   } catch (err) {
+    if (seq !== state.recommendSeq) return;
     hint.textContent = err.message;
     hint.classList.add("error");
   }
@@ -249,6 +269,7 @@ function renderSkillRow(skill) {
 function toggleSkill(id, on) {
   if (on && !state.selected.includes(id)) state.selected.push(id);
   if (!on) state.selected = state.selected.filter((x) => x !== id);
+  state.autoSelected.delete(id);
   renderSelected();
   scheduleCompose();
 }
@@ -315,18 +336,21 @@ async function compose() {
     meta.textContent = "Prompt preview";
     return;
   }
+  const seq = ++state.composeSeq;
   try {
     const { prompt } = await api("/api/compose", { method: "POST", body: JSON.stringify({ task: payload.task, skillIds: payload.skillIds, repo: payload.repo, context: payload.context, mode: payload.mode }) });
+    if (seq !== state.composeSeq) return;
     pre.textContent = prompt;
-    meta.textContent = `Prompt preview · ${prompt.length.toLocaleString()} chars · ${state.selected.length} skill${state.selected.length === 1 ? "" : "s"} (${payload.mode})`;
+    meta.textContent = `Prompt preview · ${prompt.length.toLocaleString()} chars · ${payload.skillIds.length} skill${payload.skillIds.length === 1 ? "" : "s"} (${payload.mode})`;
   } catch (err) {
+    if (seq !== state.composeSeq) return;
     pre.textContent = err.message;
     meta.textContent = "Prompt preview · error";
   }
 }
 
 function updateLaunchButtons() {
-  const ready = state.selected.length > 0 && $("task").value.trim().length >= 3;
+  const ready = state.selected.length > 0 && $("task").value.trim().length >= 3 && !state.launching;
   $("dryrun-btn").disabled = !ready;
   const configured = Boolean(state.config?.devinConfigured);
   $("launch-btn").disabled = !ready || !configured;
@@ -342,10 +366,12 @@ $("task").addEventListener("input", updateLaunchButtons);
 // ---------- launch ----------
 
 async function launch(dryRun) {
+  if (state.launching) return;
   const result = $("launch-result");
   const btn = dryRun ? $("dryrun-btn") : $("launch-btn");
   const label = btn.textContent;
-  btn.disabled = true;
+  state.launching = true;
+  updateLaunchButtons();
   btn.textContent = dryRun ? "Composing…" : "Launching…";
   result.className = "result";
   result.textContent = "";
@@ -365,7 +391,7 @@ async function launch(dryRun) {
         el("div", { class: "hint" }, `${data.sessionId} · skills: ${data.skillIds.join(", ")}`),
       );
       state.sessions.unshift(data);
-      saveSessions();
+      if (!saveSessions()) result.append(el("div", { class: "hint" }, "Could not persist to browser storage; the session is still listed below until you reload."));
       renderSessions();
       pollStatuses();
     }
@@ -377,6 +403,7 @@ async function launch(dryRun) {
   } finally {
     result.classList.remove("hidden");
     btn.textContent = label;
+    state.launching = false;
     updateLaunchButtons();
   }
 }
@@ -395,18 +422,27 @@ async function mergeServerSessions() {
   }
 }
 
+const POLL_BATCH = 20;
+
 async function pollStatuses() {
   if (!state.config?.devinConfigured) return;
   const active = state.sessions.filter((s) => {
     const st = state.statuses.get(s.sessionId);
     return !st || st.state === "running" || st.state === "blocked" || st.state === "unknown";
   });
+  if (active.length === 0) return;
+  // Rotate through active sessions so none starve when there are more than one batch's worth.
+  const start = state.pollOffset % active.length;
+  const batch = [...active.slice(start), ...active.slice(0, start)].slice(0, POLL_BATCH);
+  state.pollOffset = start + batch.length;
   await Promise.all(
-    active.slice(0, 20).map(async (s) => {
+    batch.map(async (s) => {
       try {
         state.statuses.set(s.sessionId, await api(`/api/sessions/${encodeURIComponent(s.sessionId)}`));
       } catch (err) {
-        state.statuses.set(s.sessionId, { state: "unknown", status: err.message, pullRequests: [] });
+        // 404 = launched by an earlier server process; it can't be polled but the link still works.
+        const stale = err.status === 404;
+        state.statuses.set(s.sessionId, { state: stale ? "stale" : "unknown", status: stale ? "not tracked by this server" : err.message, pullRequests: [] });
       }
     }),
   );
@@ -422,7 +458,7 @@ function renderSessions() {
   body.replaceChildren(
     ...state.sessions.map((s) => {
       const st = state.statuses.get(s.sessionId);
-      const stateName = st?.state || (state.config?.devinConfigured ? "unknown" : "unknown");
+      const stateName = st?.state || "unknown";
       const label = st ? st.status : state.config?.devinConfigured ? "checking…" : "status unavailable";
       return el(
         "tr",

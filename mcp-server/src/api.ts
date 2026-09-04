@@ -203,15 +203,17 @@ export function createApiHandler(deps: ApiDeps): ApiHandler {
 
     const sessionMatch = /^\/api\/sessions\/([^/]+)$/.exec(pathname);
     if (method === "GET" && sessionMatch) {
+      const id = decodeURIComponent(sessionMatch[1]!);
+      if (!launched.some((s) => s.sessionId === id)) throw new HttpError(404, `session ${id} was not launched by this server`);
       const devin = requireDevin();
-      const status: SessionStatus = await getDevinSession(devin, decodeURIComponent(sessionMatch[1]!), deps.fetchImpl);
+      const status: SessionStatus = await getDevinSession(devin, id, deps.fetchImpl);
       return { status: 200, body: status };
     }
 
     throw new HttpError(404, `no route for ${method} ${pathname}`);
   }
 
-  async function serveStatic(pathname: string, res: ServerResponse): Promise<boolean> {
+  async function serveStatic(pathname: string, res: ServerResponse, headOnly: boolean): Promise<boolean> {
     if (!webRoot) return false;
     const rel = pathname === "/" ? "index.html" : pathname.slice(1);
     const file = normalize(join(webRoot, rel));
@@ -224,8 +226,8 @@ export function createApiHandler(deps: ApiDeps): ApiHandler {
     }
     if (!info.isFile()) return false;
     const type = MIME[extname(file)] ?? "application/octet-stream";
-    res.writeHead(200, { "content-type": type, "cache-control": "no-cache" });
-    res.end(await readFile(file));
+    res.writeHead(200, { "content-type": type, "content-length": info.size, "cache-control": "no-cache" });
+    res.end(headOnly ? undefined : await readFile(file));
     return true;
   }
 
@@ -246,7 +248,7 @@ export function createApiHandler(deps: ApiDeps): ApiHandler {
         }
         return true;
       }
-      if (method === "GET" || method === "HEAD") return serveStatic(pathname, res);
+      if (method === "GET" || method === "HEAD") return serveStatic(pathname, res, method === "HEAD");
       return false;
     },
   };

@@ -49,7 +49,7 @@ Or without cloning: `npx -y github:marcel-tan/sdlc-skills-marketplace`.
 2. Tick/reorder skills — the top two recommendations are preselected; click a skill name to read its `SKILL.md`.
 3. Review the composed prompt, then **Launch Devin session** (needs `DEVIN_API_KEY`) or **Dry run** to see the request without spending credits.
 
-Launched sessions are listed at the bottom with live status (polled from the Devin API every 15s) and PR links once Devin opens one. If `MCP_AUTH_TOKEN` is set, paste it in the top-right field; the UI sends it as a bearer token on every `/api/*` call. Pass `--no-ui` to serve only `/mcp`.
+Launched sessions are listed at the bottom with live status (polled from the Devin API every 15s) and PR links once Devin opens one. If `MCP_AUTH_TOKEN` is set, paste it in the top-right field; the UI keeps it in `sessionStorage` (per tab, gone when the tab closes) and sends it as a bearer token on every `/api/*` call. Pass `--no-ui` to serve only `/mcp`.
 
 The UI is plain HTML/JS in `web/` talking to these routes (all JSON, same auth as `/mcp`):
 
@@ -60,7 +60,7 @@ The UI is plain HTML/JS in `web/` talking to these routes (all JSON, same auth a
 | `POST /api/recommend` `{task, limit}` | Ranked skills + suggested chain. |
 | `POST /api/compose` `{task, skillIds, repo, context, mode}` | Composed prompt. |
 | `POST /api/sessions` `{task, skillIds, repo, context, mode, title, tags, maxAcuLimit, dryRun}` | Create a Devin session (or return the request when `dryRun`). |
-| `GET /api/sessions`, `GET /api/sessions/:id` | Sessions launched by this process; live status of one session. |
+| `GET /api/sessions`, `GET /api/sessions/:id` | Sessions launched by this process; live status of one of them (404 for any other session ID). |
 
 | Variable | Purpose |
 | --- | --- |

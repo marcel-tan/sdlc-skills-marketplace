@@ -68,7 +68,13 @@ function authHeaders(config: DevinConfig): Record<string, string> {
   return { Authorization: `Bearer ${config.apiKey}`, Accept: "application/json" };
 }
 
-function asRecord(json: unknown, status: number, text: string): Record<string, unknown> {
+function parseBody(text: string, status: number): Record<string, unknown> {
+  let json: unknown;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new DevinApiError("Devin API returned a non-JSON body", status, text);
+  }
   if (json === null || typeof json !== "object" || Array.isArray(json)) throw new DevinApiError("Devin API returned a non-object body", status, text);
   return json as Record<string, unknown>;
 }
@@ -138,7 +144,7 @@ export async function getDevinSession(config: DevinConfig, sessionId: string, fe
   const res = await fetchImpl(endpoint, { method: "GET", headers: authHeaders(config) });
   const text = await res.text();
   if (!res.ok) throw new DevinApiError(`Devin API ${res.status} from ${endpoint}`, res.status, text);
-  return normalizeSession(asRecord(JSON.parse(text), res.status, text));
+  return normalizeSession(parseBody(text, res.status));
 }
 
 export async function createDevinSession(
@@ -164,7 +170,7 @@ export async function createDevinSession(
   const text = await res.text();
   if (!res.ok) throw new DevinApiError(`Devin API ${res.status} from ${endpoint}`, res.status, text);
 
-  const o = asRecord(text ? JSON.parse(text) : {}, res.status, text);
+  const o = parseBody(text, res.status);
   const sessionId = str(o.session_id);
   if (!sessionId) throw new DevinApiError("Devin API response missing session_id", res.status, text);
   return {

@@ -163,6 +163,20 @@ describe("JSON API (Devin configured)", () => {
     expect((h.fetchImpl.mock.calls[1] as [string])[0]).toBe("https://api.devin.ai/v3/organizations/org-1/sessions/devin-abc");
   });
 
+  it("refuses status lookups for sessions this server did not launch", async () => {
+    const calls = h.fetchImpl.mock.calls.length;
+    const res = await fetch(h.base + "/api/sessions/devin-someone-elses");
+    expect(res.status).toBe(404);
+    expect(h.fetchImpl.mock.calls.length).toBe(calls);
+  });
+
+  it("maps malformed upstream 2xx bodies to 502", async () => {
+    h.fetchImpl.mockResolvedValueOnce(new Response("<html>gateway</html>", { status: 200 }));
+    const res = await fetch(h.base + "/api/sessions/devin-abc");
+    expect(res.status).toBe(502);
+    expect(String((await json(res)).upstreamBody)).toContain("gateway");
+  });
+
   it("surfaces Devin API failures as 502 with the upstream body", async () => {
     h.fetchImpl.mockResolvedValueOnce(new Response(JSON.stringify({ detail: "quota exceeded" }), { status: 402 }));
     const res = await post(h.base, "/api/sessions", { task: "write a PRD for billing" });
