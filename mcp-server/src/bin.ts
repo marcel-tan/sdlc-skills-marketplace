@@ -22,7 +22,8 @@ const USAGE = `sdlc-skills-mcp [--http] [--port <n>] [--host <addr>] [--root <di
   --host <addr>  HTTP bind address (default 127.0.0.1; use 0.0.0.0 in containers)
   --root <dir>   marketplace root containing plugins/ (default: this package, or $SDLC_SKILLS_ROOT)
 
-env: DEVIN_API_KEY, DEVIN_ORG_ID (optional, selects the v3 endpoint), DEVIN_API_BASE_URL (optional)
+env: DEVIN_API_KEY, DEVIN_ORG_ID (required for service-user cog_ keys; selects the v3 endpoint),
+     DEVIN_API_BASE_URL (optional)
      MCP_AUTH_TOKEN  bearer token required on /mcp and /api/* in HTTP mode; mandatory when binding a
                      non-loopback host with DEVIN_API_KEY set (launching sessions spends credits)
 `;
@@ -166,7 +167,10 @@ async function main(): Promise<void> {
 
   httpServer.listen(args.port, args.host, () => {
     log(`MCP endpoint: http://${args.host}:${args.port}/mcp`);
-    if (api) log(`launcher UI:  http://${args.host}:${args.port}/  (Devin API ${devin ? "configured" : "NOT configured: launches disabled"})`);
+    if (api) {
+      const devinState = devin ? `configured: ${devin.orgId ? "v3 org " + devin.orgId : "legacy v1 endpoint"}` : "NOT configured: launches disabled";
+      log(`launcher UI:  http://${args.host}:${args.port}/  (Devin API ${devinState})`);
+    }
   });
   const shutdown = () => httpServer.close(() => process.exit(0));
   process.on("SIGINT", shutdown);
