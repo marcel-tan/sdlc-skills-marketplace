@@ -1,0 +1,39 @@
+{
+  "name": "@marcel-tan/sdlc-skills-marketplace",
+  "version": "0.1.0",
+  "description": "SDLC skills marketplace for Devin: plugins plus an MCP server that recommends skills for a task and starts Devin sessions with them",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": {
+    "sdlc-skills-mcp": "mcp-server/dist/bin.js"
+  },
+  "files": [
+    "mcp-server/dist",
+    "plugins",
+    "catalog.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p mcp-server/tsconfig.json",
+    "prepare": "npm run build",
+    "start": "node mcp-server/dist/bin.js",
+    "start:http": "node mcp-server/dist/bin.js --http",
+    "test": "vitest run",
+    "lint": "tsc -p mcp-server/tsconfig.json --noEmit",
+    "catalog": "node scripts/build-catalog.mjs",
+    "validate": "node scripts/validate.mjs",
+    "check": "npm run lint && npm run build && npm run validate && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "yaml": "2.9.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

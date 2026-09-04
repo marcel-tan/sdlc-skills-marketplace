@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-stories",
+  "version": "0.1.0",
+  "description": "SDLC stage 2 — story creation: decompose specs into INVEST stories, refine acceptance criteria, and create tracker tickets",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "stories", "jira", "linear", "backlog"]
+}

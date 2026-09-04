@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-testing",
+  "version": "0.1.0",
+  "description": "SDLC stage 4 — testing: close unit-test coverage gaps, derive e2e tests from acceptance criteria, and triage flaky tests",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "testing", "coverage", "e2e", "flaky"]
+}

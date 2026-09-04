@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-specs",
+  "version": "0.1.0",
+  "description": "SDLC stage 1 — specifications: write PRDs/tech specs, review specs for gaps, and record architecture decisions",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "specs", "prd", "adr"]
+}

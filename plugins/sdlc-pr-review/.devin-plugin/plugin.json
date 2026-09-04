@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-pr-review",
+  "version": "0.1.0",
+  "description": "SDLC stage 5 — PR review: severity-ranked code review, security-focused review, and addressing reviewer feedback",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "code-review", "security", "pull-request"]
+}
