@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApiHandler, type ApiDeps, type ApiHandler } from "../src/api.js";
 import { loadCatalog, type Catalog } from "../src/catalog.js";
-import { normalizeSession } from "../src/devin.js";
+import { createDevinSession, devinConfigFromEnv, normalizeSession } from "../src/devin.js";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 let catalog: Catalog;
@@ -191,6 +191,28 @@ describe("JSON API (Devin configured)", () => {
     expect(cfg.devinConfigured).toBe(true);
     expect(cfg.devinEndpoint).toBe("v3");
     expect(cfg.authRequired).toBe(true);
+  });
+});
+
+describe("devinConfigFromEnv", () => {
+  it("returns undefined without a key", () => {
+    expect(devinConfigFromEnv({})).toBeUndefined();
+  });
+
+  it("rejects a service-user key without DEVIN_ORG_ID", () => {
+    expect(() => devinConfigFromEnv({ DEVIN_API_KEY: "cog_abc" })).toThrow(/DEVIN_ORG_ID/);
+    expect(() => devinConfigFromEnv({ DEVIN_API_KEY: "cog_abc", DEVIN_ORG_ID: "  " })).toThrow(/DEVIN_ORG_ID/);
+  });
+
+  it("accepts a service-user key with DEVIN_ORG_ID, and legacy keys without", () => {
+    expect(devinConfigFromEnv({ DEVIN_API_KEY: "cog_abc", DEVIN_ORG_ID: "org-1" })).toMatchObject({ apiKey: "cog_abc", orgId: "org-1" });
+    expect(devinConfigFromEnv({ DEVIN_API_KEY: "legacy" })).toMatchObject({ apiKey: "legacy", orgId: undefined });
+  });
+
+  it("hints at DEVIN_ORG_ID when the v1 endpoint rejects the key", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ detail: "Unauthorized" }), { status: 403 }));
+    await expect(createDevinSession({ apiKey: "legacy" }, { prompt: "x" }, fetchImpl)).rejects.toThrow(/set DEVIN_ORG_ID/);
+    await expect(createDevinSession({ apiKey: "k", orgId: "org-1" }, { prompt: "x" }, fetchImpl)).rejects.toThrow(/^Devin API 403 from [^—]*$/);
   });
 });
 

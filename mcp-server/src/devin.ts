@@ -49,10 +49,17 @@ export class DevinApiError extends Error {
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
+/** Service-user keys (`cog_…`) are only accepted by the v3 organization API; the legacy v1 endpoint answers 403. */
 export function devinConfigFromEnv(env: NodeJS.ProcessEnv = process.env): DevinConfig | undefined {
   const apiKey = env.DEVIN_API_KEY;
   if (!apiKey) return undefined;
-  return { apiKey, baseUrl: env.DEVIN_API_BASE_URL, orgId: env.DEVIN_ORG_ID };
+  const orgId = env.DEVIN_ORG_ID?.trim() || undefined;
+  if (!orgId && apiKey.startsWith("cog_")) {
+    throw new Error(
+      "DEVIN_API_KEY is a service-user key (cog_…), which only works with the v3 API: set DEVIN_ORG_ID to your organization ID (Devin → Settings → Organization). Without it sessions go to /v1/sessions and Devin returns 403.",
+    );
+  }
+  return { apiKey, baseUrl: env.DEVIN_API_BASE_URL, orgId };
 }
 
 export function sessionEndpoint(config: DevinConfig): string {
@@ -66,6 +73,14 @@ export function sessionUrl(sessionId: string): string {
 
 function authHeaders(config: DevinConfig): Record<string, string> {
   return { Authorization: `Bearer ${config.apiKey}`, Accept: "application/json" };
+}
+
+function upstreamError(config: DevinConfig, endpoint: string, status: number, text: string): DevinApiError {
+  let message = `Devin API ${status} from ${endpoint}`;
+  if ((status === 401 || status === 403) && !config.orgId) {
+    message += " — the legacy v1 endpoint rejected the key; if this is a service-user key, set DEVIN_ORG_ID to use the v3 API";
+  }
+  return new DevinApiError(message, status, text);
 }
 
 function parseBody(text: string, status: number): Record<string, unknown> {
@@ -143,7 +158,7 @@ export async function getDevinSession(config: DevinConfig, sessionId: string, fe
   const endpoint = `${sessionEndpoint(config)}/${encodeURIComponent(sessionId)}`;
   const res = await fetchImpl(endpoint, { method: "GET", headers: authHeaders(config) });
   const text = await res.text();
-  if (!res.ok) throw new DevinApiError(`Devin API ${res.status} from ${endpoint}`, res.status, text);
+  if (!res.ok) throw upstreamError(config, endpoint, res.status, text);
   return normalizeSession(parseBody(text, res.status));
 }
 
@@ -168,7 +183,7 @@ export async function createDevinSession(
     body: JSON.stringify(body),
   });
   const text = await res.text();
-  if (!res.ok) throw new DevinApiError(`Devin API ${res.status} from ${endpoint}`, res.status, text);
+  if (!res.ok) throw upstreamError(config, endpoint, res.status, text);
 
   const o = parseBody(text, res.status);
   const sessionId = str(o.session_id);

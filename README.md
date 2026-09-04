@@ -36,7 +36,7 @@ Invoke a skill with `/sdlc-<stage>:<skill>`, e.g. `/sdlc-testing:flaky-test-tria
 ```bash
 npm install && npm run build
 npm start            # stdio
-npm run start:http   # HTTP: MCP at /mcp, launcher UI at /, JSON API at /api/*  (also GET /healthz)
+DEVIN_API_KEY=cog_… DEVIN_ORG_ID=… npm run start:http   # HTTP: MCP at /mcp, launcher UI at /, JSON API at /api/*  (also GET /healthz)
 ```
 
 Or without cloning: `npx -y github:marcel-tan/sdlc-skills-marketplace`.
@@ -65,7 +65,7 @@ The UI is plain HTML/JS in `web/` talking to these routes (all JSON, same auth a
 | Variable | Purpose |
 | --- | --- |
 | `DEVIN_API_KEY` | Required for `start_devin_session`. Service-user key from Devin → Settings → API. |
-| `DEVIN_ORG_ID` | Optional. When set, sessions are created via `POST /v3/organizations/{org}/sessions`; otherwise `POST /v1/sessions`. |
+| `DEVIN_ORG_ID` | Required with a service-user key (`cog_…`): sessions are created via `POST /v3/organizations/{org}/sessions`. Find it under Devin → Settings → Organization. Only legacy personal API keys work without it (falls back to `POST /v1/sessions`, which answers `403 Unauthorized` to `cog_` keys). |
 | `DEVIN_API_BASE_URL` | Optional, defaults to `https://api.devin.ai`. |
 | `MCP_AUTH_TOKEN` | HTTP mode: callers must send `Authorization: Bearer <token>` on `/mcp` and `/api/*`. Required when binding a non-loopback host with `DEVIN_API_KEY` set, since launching sessions spends credits. |
 | `PORT` / `--port`, `--host` | HTTP transport bind. Use `--host 0.0.0.0` in containers (with `MCP_AUTH_TOKEN`). |
