@@ -36,17 +36,38 @@ Invoke a skill with `/sdlc-<stage>:<skill>`, e.g. `/sdlc-testing:flaky-test-tria
 ```bash
 npm install && npm run build
 npm start            # stdio
-npm run start:http   # streamable HTTP on http://127.0.0.1:3333/mcp  (also GET /healthz)
+npm run start:http   # HTTP: MCP at /mcp, launcher UI at /, JSON API at /api/*  (also GET /healthz)
 ```
 
 Or without cloning: `npx -y github:marcel-tan/sdlc-skills-marketplace`.
+
+## Launcher UI
+
+`npm run start:http` (or `sdlc-skills-mcp --http`) also serves a web UI at `http://127.0.0.1:3333/` for launching Devin as an agent with a chosen set of skills:
+
+1. Describe the task (plus optional repo, context, title, ACU cap) and click **Recommend skills**.
+2. Tick/reorder skills — the top two recommendations are preselected; click a skill name to read its `SKILL.md`.
+3. Review the composed prompt, then **Launch Devin session** (needs `DEVIN_API_KEY`) or **Dry run** to see the request without spending credits.
+
+Launched sessions are listed at the bottom with live status (polled from the Devin API every 15s) and PR links once Devin opens one. If `MCP_AUTH_TOKEN` is set, paste it in the top-right field; the UI keeps it in `sessionStorage` (per tab, gone when the tab closes) and sends it as a bearer token on every `/api/*` call. Pass `--no-ui` to serve only `/mcp`.
+
+The UI is plain HTML/JS in `web/` talking to these routes (all JSON, same auth as `/mcp`):
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/config` | Whether Devin is configured (`v1`/`v3` endpoint), whether auth is required, stage list. |
+| `GET /api/skills`, `GET /api/skills/:plugin/:name` | Skill summaries; one skill with body and hand-off chain. |
+| `POST /api/recommend` `{task, limit}` | Ranked skills + suggested chain. |
+| `POST /api/compose` `{task, skillIds, repo, context, mode}` | Composed prompt. |
+| `POST /api/sessions` `{task, skillIds, repo, context, mode, title, tags, maxAcuLimit, dryRun}` | Create a Devin session (or return the request when `dryRun`). |
+| `GET /api/sessions`, `GET /api/sessions/:id` | Sessions launched by this process; live status of one of them (404 for any other session ID). |
 
 | Variable | Purpose |
 | --- | --- |
 | `DEVIN_API_KEY` | Required for `start_devin_session`. Service-user key from Devin → Settings → API. |
 | `DEVIN_ORG_ID` | Optional. When set, sessions are created via `POST /v3/organizations/{org}/sessions`; otherwise `POST /v1/sessions`. |
 | `DEVIN_API_BASE_URL` | Optional, defaults to `https://api.devin.ai`. |
-| `MCP_AUTH_TOKEN` | HTTP mode: callers must send `Authorization: Bearer <token>` on `/mcp`. Required when binding a non-loopback host with `DEVIN_API_KEY` set, since `start_devin_session` spends credits. |
+| `MCP_AUTH_TOKEN` | HTTP mode: callers must send `Authorization: Bearer <token>` on `/mcp` and `/api/*`. Required when binding a non-loopback host with `DEVIN_API_KEY` set, since launching sessions spends credits. |
 | `PORT` / `--port`, `--host` | HTTP transport bind. Use `--host 0.0.0.0` in containers (with `MCP_AUTH_TOKEN`). |
 | `SDLC_SKILLS_ROOT` / `--root` | Load skills from a different checkout (e.g. a fork with extra plugins). |
 
@@ -90,7 +111,8 @@ start_devin_session(task=..., skill_ids=["sdlc-testing:flaky-test-triage"], repo
 AGENTS.md                   always-on rule: pick the stage skill for the task
 plugins/sdlc-*/             one Devin plugin per stage, skills/<name>/SKILL.md
 catalog.json                generated index (npm run catalog)
-mcp-server/src/             catalog loader, recommender, prompt composer, Devin API client, MCP server, CLI
-mcp-server/test/            vitest suites (catalog validation, ranking, MCP tools over in-memory transport)
+mcp-server/src/             catalog loader, recommender, prompt composer, Devin API client, MCP server, JSON API, CLI
+mcp-server/test/            vitest suites (catalog validation, ranking, MCP tools over in-memory transport, JSON API)
+web/                        launcher UI (static HTML/CSS/JS served by --http)
 scripts/                    build-catalog.mjs, validate.mjs
 ```

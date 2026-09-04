@@ -10,6 +10,7 @@
   },
   "files": [
     "mcp-server/dist",
+    "web",
     "plugins",
     "catalog.json",
     "README.md",

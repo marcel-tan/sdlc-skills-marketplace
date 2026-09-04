@@ -1,27 +1,45 @@
 #!/usr/bin/env node
 import { timingSafeEqual } from "node:crypto";
+import { lookup } from "node:dns/promises";
 import { createServer as createHttpServer, type IncomingMessage } from "node:http";
+import { isIP } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createApiHandler } from "./api.js";
 import { loadCatalog } from "./catalog.js";
+import { devinConfigFromEnv } from "./devin.js";
 import { createServer } from "./server.js";
 
-const USAGE = `sdlc-skills-mcp [--http] [--port <n>] [--host <addr>] [--root <dir>]
+const USAGE = `sdlc-skills-mcp [--http] [--port <n>] [--host <addr>] [--root <dir>] [--no-ui]
 
   (default)      serve MCP over stdio
-  --http         serve MCP over streamable HTTP at /mcp (stateless)
+  --http         serve MCP over streamable HTTP at /mcp (stateless), the JSON API at /api/*,
+                 and the launcher web UI at /
+  --no-ui        HTTP mode without the web UI and /api/* routes
   --port <n>     HTTP port (default $PORT or 3333)
   --host <addr>  HTTP bind address (default 127.0.0.1; use 0.0.0.0 in containers)
   --root <dir>   marketplace root containing plugins/ (default: this package, or $SDLC_SKILLS_ROOT)
 
 env: DEVIN_API_KEY, DEVIN_ORG_ID (optional, selects the v3 endpoint), DEVIN_API_BASE_URL (optional)
-     MCP_AUTH_TOKEN  bearer token required on /mcp in HTTP mode; mandatory when binding a
-                     non-loopback host with DEVIN_API_KEY set (start_devin_session spends credits)
+     MCP_AUTH_TOKEN  bearer token required on /mcp and /api/* in HTTP mode; mandatory when binding a
+                     non-loopback host with DEVIN_API_KEY set (launching sessions spends credits)
 `;
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+const PACKAGE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** True only if every address the bind host resolves to is a loopback address. */
+async function isLoopbackHost(host: string): Promise<boolean> {
+  const isLoopbackAddr = (a: string) => /^127\./.test(a) || a === "::1" || /^::ffff:127\./i.test(a);
+  if (isIP(host)) return isLoopbackAddr(host);
+  try {
+    const addrs = await lookup(host, { all: true });
+    return addrs.length > 0 && addrs.every((a) => isLoopbackAddr(a.address));
+  } catch {
+    return false;
+  }
+}
 
 function bearerMatches(req: IncomingMessage, token: string): boolean {
   const header = req.headers.authorization ?? "";
@@ -39,14 +57,15 @@ function pathnameOf(req: IncomingMessage): string {
 
 interface Args {
   http: boolean;
+  ui: boolean;
   port: number;
   host: string;
   root: string;
 }
 
 function parseArgs(argv: string[]): Args {
-  const defaultRoot = process.env.SDLC_SKILLS_ROOT ?? resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-  const args: Args = { http: false, port: Number(process.env.PORT ?? 3333), host: "127.0.0.1", root: defaultRoot };
+  const defaultRoot = process.env.SDLC_SKILLS_ROOT ?? PACKAGE_DIR;
+  const args: Args = { http: false, ui: true, port: Number(process.env.PORT ?? 3333), host: "127.0.0.1", root: defaultRoot };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -57,6 +76,9 @@ function parseArgs(argv: string[]): Args {
     switch (a) {
       case "--http":
         args.http = true;
+        break;
+      case "--no-ui":
+        args.ui = false;
         break;
       case "--port":
         args.port = Number(next());
@@ -92,12 +114,17 @@ async function main(): Promise<void> {
   }
 
   const authToken = process.env.MCP_AUTH_TOKEN;
-  if (!authToken && process.env.DEVIN_API_KEY && !LOOPBACK_HOSTS.has(args.host)) {
+  if (!authToken && process.env.DEVIN_API_KEY && !(await isLoopbackHost(args.host))) {
     throw new Error(
       `refusing to bind ${args.host} with DEVIN_API_KEY but no MCP_AUTH_TOKEN: anyone reaching /mcp could start paid Devin sessions. Set MCP_AUTH_TOKEN or bind 127.0.0.1.`,
     );
   }
-  if (!authToken) log("MCP_AUTH_TOKEN not set; /mcp is unauthenticated");
+  if (!authToken) log("MCP_AUTH_TOKEN not set; /mcp and /api are unauthenticated");
+
+  const devin = devinConfigFromEnv();
+  const api = args.ui
+    ? createApiHandler({ catalog, devin, webDir: resolve(PACKAGE_DIR, "web"), authRequired: Boolean(authToken) })
+    : undefined;
 
   const httpServer = createHttpServer(async (req, res) => {
     const pathname = pathnameOf(req);
@@ -106,18 +133,20 @@ async function main(): Promise<void> {
       res.end(JSON.stringify({ ok: true, skills: catalog.skills.length }));
       return;
     }
-    if (pathname !== "/mcp") {
-      res.writeHead(404, { "content-type": "text/plain" });
-      res.end("not found; MCP endpoint is /mcp");
-      return;
-    }
-    if (authToken && !bearerMatches(req, authToken)) {
+    const protectedPath = pathname === "/mcp" || pathname.startsWith("/api/");
+    if (protectedPath && authToken && !bearerMatches(req, authToken)) {
       res.writeHead(401, { "content-type": "application/json", "www-authenticate": "Bearer" });
       res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message: "Unauthorized" }, id: null }));
       return;
     }
+    if (pathname !== "/mcp") {
+      if (api && (await api.handle(req, res))) return;
+      res.writeHead(404, { "content-type": "text/plain" });
+      res.end(api ? "not found" : "not found; MCP endpoint is /mcp");
+      return;
+    }
     // Stateless: a fresh server + transport per request, so any client can call any tool without session bookkeeping.
-    const server = createServer({ catalog });
+    const server = createServer({ catalog, devin });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on("close", () => {
       void transport.close();
@@ -135,7 +164,10 @@ async function main(): Promise<void> {
     }
   });
 
-  httpServer.listen(args.port, args.host, () => log(`listening on http://${args.host}:${args.port}/mcp`));
+  httpServer.listen(args.port, args.host, () => {
+    log(`MCP endpoint: http://${args.host}:${args.port}/mcp`);
+    if (api) log(`launcher UI:  http://${args.host}:${args.port}/  (Devin API ${devin ? "configured" : "NOT configured: launches disabled"})`);
+  });
   const shutdown = () => httpServer.close(() => process.exit(0));
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);

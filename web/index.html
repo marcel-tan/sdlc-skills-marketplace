@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SDLC Skills Launcher</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">SDLC</span>
+        <div>
+          <h1>Skills Launcher</h1>
+          <p class="sub">Pick a task, choose skills, send Devin to work.</p>
+        </div>
+      </div>
+      <div class="status" id="status">
+        <span class="pill" id="devin-pill" data-state="loading">Connecting…</span>
+        <form class="token-form hidden" id="token-form" autocomplete="off">
+          <input id="token-input" type="password" placeholder="MCP_AUTH_TOKEN" aria-label="MCP auth token" />
+          <button type="submit" class="btn small">Save</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel" id="task-panel">
+        <h2><span class="step">1</span> Describe the task</h2>
+        <label class="field">
+          <span>Task</span>
+          <textarea id="task" rows="4" placeholder="e.g. Review PR #42 in acme/api for security issues and fix any duplicated validation code"></textarea>
+        </label>
+        <div class="row">
+          <label class="field">
+            <span>Repository <em>(optional)</em></span>
+            <input id="repo" type="text" placeholder="github.com/acme/api" />
+          </label>
+          <label class="field">
+            <span>Session title <em>(optional)</em></span>
+            <input id="title" type="text" placeholder="Auto-generated if empty" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Extra context <em>(optional)</em></span>
+          <textarea id="context" rows="2" placeholder="Constraints, links, acceptance criteria…"></textarea>
+        </label>
+        <div class="row">
+          <label class="field">
+            <span>Skill mode</span>
+            <select id="mode">
+              <option value="inline">inline — embed SKILL.md bodies in the prompt</option>
+              <option value="reference">reference — plugin installed, name skills only</option>
+            </select>
+          </label>
+          <label class="field narrow">
+            <span>Max ACUs <em>(optional)</em></span>
+            <input id="max-acu" type="number" min="1" step="1" placeholder="∞" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="recommend-btn" type="button">Recommend skills</button>
+          <span class="hint" id="recommend-hint"></span>
+        </div>
+        <div class="examples">
+          <span>Try:</span>
+          <button type="button" class="chip example" data-task="Write a PRD for a usage-based billing feature and break it into stories">PRD → stories</button>
+          <button type="button" class="chip example" data-task="Implement the story for exporting invoices as CSV, with unit tests">Implement a story</button>
+          <button type="button" class="chip example" data-task="Review pull request #42 for security issues">PR security review</button>
+          <button type="button" class="chip example" data-task="Find and remove duplicated code in the payments module">Dedupe code</button>
+        </div>
+      </section>
+
+      <section class="panel" id="skills-panel">
+        <h2><span class="step">2</span> Choose skills <span class="count" id="selected-count">0 selected</span></h2>
+        <div class="selected" id="selected-list" aria-live="polite"></div>
+        <div class="catalog" id="catalog"></div>
+      </section>
+
+      <section class="panel" id="launch-panel">
+        <h2><span class="step">3</span> Launch Devin</h2>
+        <div class="prompt-head">
+          <span id="prompt-meta" class="hint">Prompt preview</span>
+          <button type="button" class="btn small ghost" id="copy-btn">Copy prompt</button>
+        </div>
+        <pre id="prompt" class="prompt" tabindex="0">Select at least one skill to preview the prompt.</pre>
+        <div class="actions">
+          <button class="btn primary" id="launch-btn" type="button" disabled>Launch Devin session</button>
+          <button class="btn" id="dryrun-btn" type="button" disabled>Dry run</button>
+          <span class="hint" id="launch-hint"></span>
+        </div>
+        <div id="launch-result" class="result hidden"></div>
+      </section>
+
+      <section class="panel wide" id="sessions-panel">
+        <h2>Sessions launched from here <button type="button" class="btn small ghost" id="refresh-btn">Refresh</button></h2>
+        <table class="sessions">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Task</th>
+              <th>Skills</th>
+              <th>Launched</th>
+              <th>Links</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-body">
+            <tr class="empty"><td colspan="5">No sessions yet.</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <aside class="drawer hidden" id="drawer" aria-hidden="true">
+      <div class="drawer-head">
+        <h3 id="drawer-title"></h3>
+        <button type="button" class="btn small ghost" id="drawer-close">Close</button>
+      </div>
+      <div class="drawer-meta" id="drawer-meta"></div>
+      <pre class="skill-body" id="drawer-body"></pre>
+    </aside>
+    <div class="scrim hidden" id="scrim"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
