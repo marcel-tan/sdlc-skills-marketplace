@@ -46,7 +46,8 @@ Or without cloning: `npx -y github:marcel-tan/sdlc-skills-marketplace`.
 | `DEVIN_API_KEY` | Required for `start_devin_session`. Service-user key from Devin → Settings → API. |
 | `DEVIN_ORG_ID` | Optional. When set, sessions are created via `POST /v3/organizations/{org}/sessions`; otherwise `POST /v1/sessions`. |
 | `DEVIN_API_BASE_URL` | Optional, defaults to `https://api.devin.ai`. |
-| `PORT` / `--port`, `--host` | HTTP transport bind. Use `--host 0.0.0.0` in containers. |
+| `MCP_AUTH_TOKEN` | HTTP mode: callers must send `Authorization: Bearer <token>` on `/mcp`. Required when binding a non-loopback host with `DEVIN_API_KEY` set, since `start_devin_session` spends credits. |
+| `PORT` / `--port`, `--host` | HTTP transport bind. Use `--host 0.0.0.0` in containers (with `MCP_AUTH_TOKEN`). |
 | `SDLC_SKILLS_ROOT` / `--root` | Load skills from a different checkout (e.g. a fork with extra plugins). |
 
 Register it in Devin → Settings → Connections → MCP servers:
