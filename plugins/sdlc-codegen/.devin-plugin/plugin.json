@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-codegen",
+  "version": "0.1.0",
+  "description": "SDLC stage 3 — code generation: implement a story end-to-end, scaffold modules/services, and generate APIs from schemas",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "codegen", "implementation"]
+}

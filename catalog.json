@@ -1,0 +1,570 @@
+{
+  "version": 1,
+  "stages": [
+    "specs",
+    "stories",
+    "codegen",
+    "testing",
+    "pr-review",
+    "code-hygiene"
+  ],
+  "plugins": [
+    {
+      "name": "sdlc-specs",
+      "version": "0.1.0",
+      "description": "SDLC stage 1 — specifications: write PRDs/tech specs, review specs for gaps, and record architecture decisions",
+      "stage": "specs",
+      "path": "plugins/sdlc-specs",
+      "skills": [
+        "sdlc-specs:adr",
+        "sdlc-specs:spec-review",
+        "sdlc-specs:write-prd"
+      ]
+    },
+    {
+      "name": "sdlc-stories",
+      "version": "0.1.0",
+      "description": "SDLC stage 2 — story creation: decompose specs into INVEST stories, refine acceptance criteria, and create tracker tickets",
+      "stage": "stories",
+      "path": "plugins/sdlc-stories",
+      "skills": [
+        "sdlc-stories:create-tickets",
+        "sdlc-stories:spec-to-stories",
+        "sdlc-stories:story-refinement"
+      ]
+    },
+    {
+      "name": "sdlc-codegen",
+      "version": "0.1.0",
+      "description": "SDLC stage 3 — code generation: implement a story end-to-end, scaffold modules/services, and generate APIs from schemas",
+      "stage": "codegen",
+      "path": "plugins/sdlc-codegen",
+      "skills": [
+        "sdlc-codegen:api-from-spec",
+        "sdlc-codegen:implement-story",
+        "sdlc-codegen:scaffold-module"
+      ]
+    },
+    {
+      "name": "sdlc-testing",
+      "version": "0.1.0",
+      "description": "SDLC stage 4 — testing: close unit-test coverage gaps, derive e2e tests from acceptance criteria, and triage flaky tests",
+      "stage": "testing",
+      "path": "plugins/sdlc-testing",
+      "skills": [
+        "sdlc-testing:e2e-from-acceptance-criteria",
+        "sdlc-testing:flaky-test-triage",
+        "sdlc-testing:unit-test-gaps"
+      ]
+    },
+    {
+      "name": "sdlc-pr-review",
+      "version": "0.1.0",
+      "description": "SDLC stage 5 — PR review: severity-ranked code review, security-focused review, and addressing reviewer feedback",
+      "stage": "pr-review",
+      "path": "plugins/sdlc-pr-review",
+      "skills": [
+        "sdlc-pr-review:address-review-feedback",
+        "sdlc-pr-review:pr-review",
+        "sdlc-pr-review:security-review"
+      ]
+    },
+    {
+      "name": "sdlc-code-hygiene",
+      "version": "0.1.0",
+      "description": "SDLC stage 6 — code hygiene: eliminate duplicated code, remove dead code, and upgrade dependencies safely",
+      "stage": "code-hygiene",
+      "path": "plugins/sdlc-code-hygiene",
+      "skills": [
+        "sdlc-code-hygiene:dead-code-removal",
+        "sdlc-code-hygiene:dedupe-code",
+        "sdlc-code-hygiene:dependency-upgrade"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "sdlc-specs:adr",
+      "plugin": "sdlc-specs",
+      "name": "adr",
+      "stage": "specs",
+      "description": "Write an Architecture Decision Record capturing context, options considered, the decision, and consequences. Use when a spec or discussion involves choosing between technical approaches (library, storage, protocol, service boundary) that future engineers will need to understand.",
+      "tags": [
+        "adr",
+        "architecture",
+        "decision"
+      ],
+      "inputs": [
+        "decision to be made",
+        "options under consideration",
+        "constraints"
+      ],
+      "outputs": [
+        "docs/adr/NNNN-<slug>.md on a branch with a PR"
+      ],
+      "next": [
+        "sdlc-stories:spec-to-stories",
+        "sdlc-codegen:implement-story"
+      ],
+      "path": "plugins/sdlc-specs/skills/adr/SKILL.md"
+    },
+    {
+      "id": "sdlc-specs:spec-review",
+      "plugin": "sdlc-specs",
+      "name": "spec-review",
+      "stage": "specs",
+      "description": "Review an existing PRD, RFC, or tech spec for ambiguity, missing requirements, untestable acceptance criteria, and unstated risks. Use when asked to review, critique, or sanity-check a spec or design doc before implementation starts.",
+      "tags": [
+        "spec",
+        "review",
+        "requirements",
+        "risk"
+      ],
+      "inputs": [
+        "spec document (path",
+        "URL",
+        "or pasted text)",
+        "target repo(s)"
+      ],
+      "outputs": [
+        "review comments on the spec PR/page",
+        "or a findings list grouped by severity"
+      ],
+      "next": [
+        "sdlc-stories:spec-to-stories"
+      ],
+      "path": "plugins/sdlc-specs/skills/spec-review/SKILL.md"
+    },
+    {
+      "id": "sdlc-specs:write-prd",
+      "plugin": "sdlc-specs",
+      "name": "write-prd",
+      "stage": "specs",
+      "description": "Turn a problem statement, feature request, or ticket into a PRD / tech spec with goals, non-goals, requirements, and testable acceptance criteria. Use when asked to write a spec, PRD, RFC, or design doc for new work.",
+      "tags": [
+        "prd",
+        "spec",
+        "rfc",
+        "requirements",
+        "design-doc"
+      ],
+      "inputs": [
+        "problem statement or feature request",
+        "known constraints",
+        "target repo(s)"
+      ],
+      "outputs": [
+        "docs/specs/<slug>.md committed on a branch, or a Confluence/Notion page if the org keeps specs there"
+      ],
+      "next": [
+        "sdlc-specs:spec-review",
+        "sdlc-stories:spec-to-stories"
+      ],
+      "path": "plugins/sdlc-specs/skills/write-prd/SKILL.md"
+    },
+    {
+      "id": "sdlc-stories:create-tickets",
+      "plugin": "sdlc-stories",
+      "name": "create-tickets",
+      "stage": "stories",
+      "description": "Create epics and stories in the team's issue tracker (Jira, Linear, Azure Boards, or GitHub Issues) from a stories document, with dependencies, labels, and links back to the spec. Use when asked to file tickets, push stories to the backlog, or sync a plan into the tracker.",
+      "tags": [
+        "tickets",
+        "jira",
+        "linear",
+        "azure-boards",
+        "github-issues",
+        "backlog"
+      ],
+      "inputs": [
+        "stories document from spec-to-stories",
+        "tracker project/team key",
+        "spec URL"
+      ],
+      "outputs": [
+        "created ticket IDs mapped to story IDs",
+        "epic link",
+        "tracker URL list"
+      ],
+      "next": [
+        "sdlc-codegen:implement-story"
+      ],
+      "path": "plugins/sdlc-stories/skills/create-tickets/SKILL.md"
+    },
+    {
+      "id": "sdlc-stories:spec-to-stories",
+      "plugin": "sdlc-stories",
+      "name": "spec-to-stories",
+      "stage": "stories",
+      "description": "Decompose a PRD or tech spec into an epic with INVEST user stories, each with Gherkin acceptance criteria, requirement traceability, and a size estimate. Use when asked to break down a spec, create a backlog, or turn requirements into tickets.",
+      "tags": [
+        "stories",
+        "backlog",
+        "epic",
+        "decomposition",
+        "gherkin"
+      ],
+      "inputs": [
+        "spec document with requirement IDs",
+        "target repo(s)",
+        "team conventions for story format"
+      ],
+      "outputs": [
+        "stories.md (or JSON) with one entry per story, ready for create-tickets"
+      ],
+      "next": [
+        "sdlc-stories:story-refinement",
+        "sdlc-stories:create-tickets"
+      ],
+      "path": "plugins/sdlc-stories/skills/spec-to-stories/SKILL.md"
+    },
+    {
+      "id": "sdlc-stories:story-refinement",
+      "plugin": "sdlc-stories",
+      "name": "story-refinement",
+      "stage": "stories",
+      "description": "Tighten an existing story or ticket so it is ready for implementation - sharpen acceptance criteria, surface hidden dependencies and edge cases, right-size the estimate, and add technical notes with file paths. Use when a ticket is vague, too large, or fails the definition of ready.",
+      "tags": [
+        "refinement",
+        "grooming",
+        "acceptance-criteria",
+        "definition-of-ready"
+      ],
+      "inputs": [
+        "ticket ID or story text",
+        "target repo(s)"
+      ],
+      "outputs": [
+        "updated ticket description (or proposed diff of it)",
+        "split tickets if needed"
+      ],
+      "next": [
+        "sdlc-codegen:implement-story"
+      ],
+      "path": "plugins/sdlc-stories/skills/story-refinement/SKILL.md"
+    },
+    {
+      "id": "sdlc-codegen:api-from-spec",
+      "plugin": "sdlc-codegen",
+      "name": "api-from-spec",
+      "stage": "codegen",
+      "description": "Generate or update API endpoints, request/response types, validation, and contract tests from an OpenAPI, GraphQL, protobuf, or JSON Schema definition - schema first, using the repo's existing codegen toolchain when present. Use when asked to add or change an API, endpoint, or contract.",
+      "tags": [
+        "api",
+        "openapi",
+        "graphql",
+        "protobuf",
+        "schema-first",
+        "contract-tests"
+      ],
+      "inputs": [
+        "schema file or spec section describing the API",
+        "target repo"
+      ],
+      "outputs": [
+        "updated schema",
+        "generated/handwritten types",
+        "handlers with validation",
+        "contract tests",
+        "PR"
+      ],
+      "next": [
+        "sdlc-testing:e2e-from-acceptance-criteria",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-codegen/skills/api-from-spec/SKILL.md"
+    },
+    {
+      "id": "sdlc-codegen:implement-story",
+      "plugin": "sdlc-codegen",
+      "name": "implement-story",
+      "stage": "codegen",
+      "description": "Implement a refined story or ticket end to end - branch, code, tests, lint, and a PR whose description traces back to the acceptance criteria. Use when asked to implement, build, or ship a ticket, story, or feature that already has acceptance criteria.",
+      "tags": [
+        "implementation",
+        "feature",
+        "ticket",
+        "pull-request"
+      ],
+      "inputs": [
+        "ticket ID or story text with acceptance criteria",
+        "target repo"
+      ],
+      "outputs": [
+        "PR with AC checklist",
+        "tests covering each AC",
+        "ticket moved to In Review"
+      ],
+      "next": [
+        "sdlc-testing:unit-test-gaps",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-codegen/skills/implement-story/SKILL.md"
+    },
+    {
+      "id": "sdlc-codegen:scaffold-module",
+      "plugin": "sdlc-codegen",
+      "name": "scaffold-module",
+      "stage": "codegen",
+      "description": "Scaffold a new module, package, or service that follows the repository's existing conventions for layout, config, tests, CI, and docs - by copying the shape of the best existing example rather than a generic template. Use when asked to create a new service, package, module, or bounded context.",
+      "tags": [
+        "scaffold",
+        "new-service",
+        "new-package",
+        "boilerplate",
+        "conventions"
+      ],
+      "inputs": [
+        "module/service name and purpose",
+        "target repo",
+        "reference module (optional)"
+      ],
+      "outputs": [
+        "new module with build/test/CI wiring",
+        "README",
+        "one passing smoke test",
+        "PR"
+      ],
+      "next": [
+        "sdlc-codegen:implement-story",
+        "sdlc-codegen:api-from-spec"
+      ],
+      "path": "plugins/sdlc-codegen/skills/scaffold-module/SKILL.md"
+    },
+    {
+      "id": "sdlc-testing:e2e-from-acceptance-criteria",
+      "plugin": "sdlc-testing",
+      "name": "e2e-from-acceptance-criteria",
+      "stage": "testing",
+      "description": "Translate a story's Given/When/Then acceptance criteria into end-to-end or integration tests (Playwright, Cypress, API-level, or the repo's e2e framework), wired into CI with stable selectors and seeded data. Use when asked to write e2e tests, automate acceptance tests, or verify a story's behavior end to end.",
+      "tags": [
+        "e2e",
+        "integration",
+        "playwright",
+        "cypress",
+        "acceptance-tests"
+      ],
+      "inputs": [
+        "story or ticket with acceptance criteria",
+        "running app or instructions to start it"
+      ],
+      "outputs": [
+        "one e2e test per AC",
+        "CI wiring",
+        "run report with traces/screenshots for failures"
+      ],
+      "next": [
+        "sdlc-testing:flaky-test-triage",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-testing/skills/e2e-from-acceptance-criteria/SKILL.md"
+    },
+    {
+      "id": "sdlc-testing:flaky-test-triage",
+      "plugin": "sdlc-testing",
+      "name": "flaky-test-triage",
+      "stage": "testing",
+      "description": "Reproduce, root-cause, and fix (or quarantine with a ticket) a flaky test using CI history, repeated local runs, and the common flake taxonomy - timing, shared state, order dependence, resource leaks, external services. Use when a test fails intermittently, CI is red without a related change, or asked to stabilize a suite.",
+      "tags": [
+        "flaky",
+        "ci",
+        "stability",
+        "quarantine",
+        "root-cause"
+      ],
+      "inputs": [
+        "failing test name(s) and CI run URL(s)",
+        "target repo"
+      ],
+      "outputs": [
+        "fix PR with root cause",
+        "or quarantine PR + tracker ticket with reproduction notes"
+      ],
+      "next": [
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-testing/skills/flaky-test-triage/SKILL.md"
+    },
+    {
+      "id": "sdlc-testing:unit-test-gaps",
+      "plugin": "sdlc-testing",
+      "name": "unit-test-gaps",
+      "stage": "testing",
+      "description": "Measure test coverage for a package or changed files, identify meaningful gaps (untested branches, error paths, boundary values), and write targeted unit tests using the repo's existing test framework and patterns. Use when asked to raise coverage, add tests, or when a PR lowers coverage.",
+      "tags": [
+        "unit-tests",
+        "coverage",
+        "tdd"
+      ],
+      "inputs": [
+        "target package or file list (default = files changed on the branch)",
+        "coverage target"
+      ],
+      "outputs": [
+        "new/updated test files",
+        "before/after coverage numbers in the PR description"
+      ],
+      "next": [
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-testing/skills/unit-test-gaps/SKILL.md"
+    },
+    {
+      "id": "sdlc-pr-review:address-review-feedback",
+      "plugin": "sdlc-pr-review",
+      "name": "address-review-feedback",
+      "stage": "pr-review",
+      "description": "Work through reviewer comments on a PR - fix each accepted item in its own commit, push back with evidence where the reviewer is mistaken, reply per thread, and re-request review. Use when asked to address review comments, respond to a review, or get a PR ready to merge after feedback.",
+      "tags": [
+        "pull-request",
+        "review-comments",
+        "iteration"
+      ],
+      "inputs": [
+        "PR URL/number with review comments"
+      ],
+      "outputs": [
+        "commits addressing each comment",
+        "per-thread replies",
+        "updated PR description",
+        "re-requested review"
+      ],
+      "next": [
+        "sdlc-code-hygiene:dedupe-code"
+      ],
+      "path": "plugins/sdlc-pr-review/skills/address-review-feedback/SKILL.md"
+    },
+    {
+      "id": "sdlc-pr-review:pr-review",
+      "plugin": "sdlc-pr-review",
+      "name": "pr-review",
+      "stage": "pr-review",
+      "description": "Review a pull request or diff for correctness, safety, test adequacy, and style, reporting findings grouped by severity with file:line references and traceability to the story's acceptance criteria. Use when asked to review a PR, branch, or diff.",
+      "tags": [
+        "code-review",
+        "pull-request",
+        "quality"
+      ],
+      "inputs": [
+        "PR URL/number or branch name",
+        "linked ticket (optional)"
+      ],
+      "outputs": [
+        "review posted on the PR (or returned as text) with blocker/should-fix/nit findings and an explicit verdict"
+      ],
+      "next": [
+        "sdlc-pr-review:address-review-feedback",
+        "sdlc-pr-review:security-review"
+      ],
+      "path": "plugins/sdlc-pr-review/skills/pr-review/SKILL.md"
+    },
+    {
+      "id": "sdlc-pr-review:security-review",
+      "plugin": "sdlc-pr-review",
+      "name": "security-review",
+      "stage": "pr-review",
+      "description": "Perform a security-focused review of a PR or module against OWASP Top 10 and the repo's threat model - authn/authz, input validation, injection, secrets, data exposure, dependency risk, and infrastructure changes. Use when a change touches authentication, payments, PII, permissions, crypto, file/network I/O, IaC, or when asked for a security review.",
+      "tags": [
+        "security",
+        "owasp",
+        "secrets",
+        "authz",
+        "dependencies",
+        "iac"
+      ],
+      "inputs": [
+        "PR URL/number or module path",
+        "threat model or data classification (optional)"
+      ],
+      "outputs": [
+        "security findings with severity (critical/high/medium/low)",
+        "CWE/OWASP references",
+        "and concrete remediation; verdict"
+      ],
+      "next": [
+        "sdlc-pr-review:address-review-feedback"
+      ],
+      "path": "plugins/sdlc-pr-review/skills/security-review/SKILL.md"
+    },
+    {
+      "id": "sdlc-code-hygiene:dead-code-removal",
+      "plugin": "sdlc-code-hygiene",
+      "name": "dead-code-removal",
+      "stage": "code-hygiene",
+      "description": "Detect and safely delete unused exports, files, dependencies, feature flags, and config using static analysis (knip, ts-prune, vulture, deadcode, depcheck) cross-checked against runtime evidence. Use when asked to remove dead code, prune unused dependencies, retire feature flags, or shrink a codebase.",
+      "tags": [
+        "dead-code",
+        "unused",
+        "dependencies",
+        "feature-flags",
+        "cleanup"
+      ],
+      "inputs": [
+        "target repo or directory"
+      ],
+      "outputs": [
+        "removal PR(s) grouped by risk",
+        "list of items kept with reasons"
+      ],
+      "next": [
+        "sdlc-code-hygiene:dependency-upgrade",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-code-hygiene/skills/dead-code-removal/SKILL.md"
+    },
+    {
+      "id": "sdlc-code-hygiene:dedupe-code",
+      "plugin": "sdlc-code-hygiene",
+      "name": "dedupe-code",
+      "stage": "code-hygiene",
+      "description": "Find duplicated and near-duplicated code with a clone detector (jscpd, PMD CPD, or the language's equivalent), decide which clones are worth consolidating, extract shared abstractions without changing behavior, and prove it with the existing tests. Use when asked to remove duplication, DRY up code, consolidate copy-pasted logic, or clean up after a feature lands.",
+      "tags": [
+        "duplication",
+        "refactoring",
+        "dry",
+        "clone-detection",
+        "cleanup"
+      ],
+      "inputs": [
+        "target repo or directory",
+        "optional threshold (min tokens/lines)"
+      ],
+      "outputs": [
+        "duplication report (before/after)",
+        "refactor PR(s) with behavior-preserving commits"
+      ],
+      "next": [
+        "sdlc-code-hygiene:dead-code-removal",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-code-hygiene/skills/dedupe-code/SKILL.md"
+    },
+    {
+      "id": "sdlc-code-hygiene:dependency-upgrade",
+      "plugin": "sdlc-code-hygiene",
+      "name": "dependency-upgrade",
+      "stage": "code-hygiene",
+      "description": "Upgrade dependencies safely - audit for vulnerabilities and staleness, group upgrades by risk, read changelogs for breaking changes, apply codemods, and verify with the full test suite. Use when asked to update packages, fix a vulnerability alert, bump a framework version, or resolve Dependabot/Renovate backlog.",
+      "tags": [
+        "dependencies",
+        "upgrade",
+        "vulnerabilities",
+        "dependabot",
+        "renovate",
+        "supply-chain"
+      ],
+      "inputs": [
+        "target repo",
+        "scope (all / specific package / security-only)"
+      ],
+      "outputs": [
+        "one PR per risk tier with changelog summaries and test evidence"
+      ],
+      "next": [
+        "sdlc-pr-review:security-review",
+        "sdlc-pr-review:pr-review"
+      ],
+      "path": "plugins/sdlc-code-hygiene/skills/dependency-upgrade/SKILL.md"
+    }
+  ]
+}

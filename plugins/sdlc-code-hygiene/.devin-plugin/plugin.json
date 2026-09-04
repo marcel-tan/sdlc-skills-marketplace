@@ -1,0 +1,8 @@
+{
+  "name": "sdlc-code-hygiene",
+  "version": "0.1.0",
+  "description": "SDLC stage 6 — code hygiene: eliminate duplicated code, remove dead code, and upgrade dependencies safely",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "refactoring", "duplication", "dead-code", "dependencies"]
+}

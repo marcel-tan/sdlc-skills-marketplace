@@ -1,0 +1,44 @@
+{
+  "name": "sdlc-skills-marketplace",
+  "version": "0.1.0",
+  "description": "Meta-plugin: installs the full SDLC skill set (specs, stories, codegen, testing, PR review, code hygiene) and defines the marketplace policy",
+  "author": { "name": "Marcel Tan" },
+  "license": "MIT",
+  "keywords": ["devin", "plugin", "sdlc", "marketplace", "meta"],
+
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-specs"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-stories"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-codegen"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-testing"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-pr-review"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/marcel-tan/sdlc-skills-marketplace.git",
+      "path": "plugins/sdlc-code-hygiene"
+    }
+  ],
+
+  "optionalPlugins": [],
+  "forbiddenPlugins": []
+}
